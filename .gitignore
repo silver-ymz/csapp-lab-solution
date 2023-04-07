@@ -1,2 +1,5 @@
 .DS_Store
 *.i64
+.cache
+.clang-format
+compile_commands.json

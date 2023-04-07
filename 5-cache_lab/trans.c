@@ -20,24 +20,11 @@ int is_transpose(int M, int N, int A[N][M], int B[M][N]);
  *     searches for that string to identify the transpose function to
  *     be graded.
  */
+void trans2(int M, int N, int A[N][M], int B[M][N]);
+
 char transpose_submit_desc[] = "Transpose submission";
 void transpose_submit(int M, int N, int A[N][M], int B[M][N]) {
-    #define MIN(a, b) ((a) < (b) ? (a) : (b))
-    #define BSIZE 256 / M
-        int i, j, mi, mj, t[8];
-        for (mi = 0; mi < N; mi+= BSIZE) {
-            for (mj = 0; mj < M; mj += BSIZE) {
-                for (i = mi; i < MIN(mi + BSIZE, N); i++) {
-                    for (j = mj; j < MIN(mj + BSIZE, M); j++) {
-                        t[j-mj] = A[i][j];
-                    }
-                    for (j = mj; j < MIN(mj + BSIZE, M); j++) {
-                        B[j][i] = t[j-mj];
-                    }
-                }
-            }
-        }
-
+    trans2(M, N, A, B);
 }
 
 /*
@@ -48,14 +35,54 @@ void transpose_submit(int M, int N, int A[N][M], int B[M][N]) {
 /*
  * trans - A simple baseline transpose function, not optimized for the cache.
  */
-char trans_desc[] = "Simple row-wise scan transpose";
-void trans(int M, int N, int A[N][M], int B[M][N]) {
+char trans0_desc[] = "Simple row-wise scan transpose";
+void trans0(int M, int N, int A[N][M], int B[M][N]) {
     int i, j, tmp;
 
     for (i = 0; i < N; i++) {
         for (j = 0; j < M; j++) {
             tmp = A[i][j];
             B[j][i] = tmp;
+        }
+    }
+}
+
+char trans1_desc[] = "Row block scan transpose";
+void trans1(int M, int N, int A[N][M], int B[M][N]) {
+#define MIN(a, b) ((a) < (b) ? (a) : (b))
+    const int BSIZE = 256 / M;
+    int i, j, mi, mj, t[BSIZE];
+    for (mi = 0; mi < N; mi += BSIZE) {
+        for (mj = 0; mj < M; mj += BSIZE) {
+            for (i = mi; i < MIN(mi + BSIZE, N); i++) {
+                for (j = mj; j < MIN(mj + BSIZE, M); j++) {
+                    t[j - mj] = A[i][j];
+                }
+                for (j = mj; j < MIN(mj + BSIZE, M); j++) {
+                    B[j][i] = t[j - mj];
+                }
+            }
+        }
+    }
+}
+
+char trans2_desc[] = "8x8 block scan transpose";
+void trans2(int M, int N, int A[N][M], int B[M][N]) {
+#define MIN(a, b) ((a) < (b) ? (a) : (b))
+    const int BSIZE = 8;
+    int i, j, mi, mj, t[BSIZE][BSIZE];
+    for (mi = 0; mi < N; mi += BSIZE) {
+        for (mj = 0; mj < M; mj += BSIZE) {
+            for (i = mi; i < MIN(mi + BSIZE, N); i++) {
+                for (j = mj; j < MIN(mj + BSIZE, M); j++) {
+                    t[i - mi][j - mj] = A[i][j];
+                }
+            }
+            for (j = mj; j < MIN(mj + BSIZE, M); j++) {
+                for (i = mi; i < MIN(mi + BSIZE, N); i++) {
+                    B[j][i] = t[i - mi][j - mj];
+                }
+            }
         }
     }
 }
@@ -72,7 +99,9 @@ void registerFunctions() {
     registerTransFunction(transpose_submit, transpose_submit_desc);
 
     /* Register any additional transpose functions */
-    registerTransFunction(trans, trans_desc);
+    registerTransFunction(trans0, trans0_desc);
+    registerTransFunction(trans1, trans1_desc);
+    registerTransFunction(trans2, trans2_desc);
 }
 
 /*
